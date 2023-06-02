@@ -1,20 +1,27 @@
-import { getNews } from "./api.js";
-
-/*
-    1. refs
-    2. вішаємо слухач подій на сабміт форми
-    3. у ф-ції сабміту створюємо запит використовуючи getNews і передаємо в якості аргументу те, що ми написали в інпут
-    4. витягнути ті дані, що нам потрібні, сформувати розмітку і показати на екрані користувачу
-    5. оброблювати помилки
-    6. очистити інпут
-*/
+import NewsAPIService from "./NewsAPIService.js";
+import LoadMoreBtn from "./components/LoadMoreBtn.js";
 
 const refs = {
   form: document.getElementById("form"),
   newsWrapper: document.getElementById("newsWrapper"),
 };
 
+const newsAPIService = new NewsAPIService();
+const loadMoreBtn = new LoadMoreBtn({
+  selector: "#loadMore",
+  isHidden: true,
+});
+
 refs.form.addEventListener("submit", onSubmit);
+loadMoreBtn.button.addEventListener("click", fetchArticles);
+
+function fetchArticles() {
+  loadMoreBtn.disable();
+  return generateArticlesMarkup().then((markup) => {
+    appendNewToNewsList(markup);
+    loadMoreBtn.enable();
+  });
+}
 
 function onSubmit(event) {
   event.preventDefault();
@@ -24,19 +31,25 @@ function onSubmit(event) {
     alert("Empty query!");
     return;
   }
+  clearNewsList();
+  newsAPIService.setSearchValue(inputValue);
+  loadMoreBtn.show();
+  newsAPIService.resetPage();
 
-  getNews(inputValue)
-    .then(({ articles }) => {
-      if (articles.length === 0) throw new Error("Not found");
-
-      return articles.reduce(
-        (markup, currentNews) => markup + createMarkup(currentNews),
-        ""
-      );
-    })
-    .then(updateNewsList)
+  fetchArticles()
     .catch(onError)
     .finally(() => refs.form.reset());
+}
+
+function generateArticlesMarkup() {
+  return newsAPIService.getNews().then(({ articles }) => {
+    if (articles.length === 0) throw new Error("Not found");
+
+    return articles.reduce(
+      (markup, currentNews) => markup + createMarkup(currentNews),
+      ""
+    );
+  });
 }
 
 function createMarkup({ author, title, description, url, urlToImage }) {
@@ -54,11 +67,26 @@ function createMarkup({ author, title, description, url, urlToImage }) {
     `;
 }
 
-function updateNewsList(markup) {
-  refs.newsWrapper.innerHTML = markup;
+function appendNewToNewsList(markup) {
+  refs.newsWrapper.insertAdjacentHTML("beforeend", markup);
+}
+
+function clearNewsList() {
+  refs.newsWrapper.innerHTML = "";
 }
 
 function onError(err) {
   console.error(err);
   updateNewsList(`<p>${err.message}</p>`);
 }
+
+//! ===========
+
+// window.addEventListener("scroll", handleScroll);
+
+// function handleScroll() {
+//   const { clientHeight, scrollTop, scrollHeight } = document.documentElement;
+//   if (scrollTop + clientHeight >= scrollHeight - 5) {
+//     fetchArticles();
+//   }
+// }
