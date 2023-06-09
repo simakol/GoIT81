@@ -6,14 +6,39 @@ export default class NewsAPIService {
     this.searchValue = "";
   }
 
-  getNews() {
+  /*
+  1. async - оголошує асинхронну ф-цію, а в свою чергу асинхронна ф-ція ЗАВЖДИ повертає проміс
+  2. await не можна використовувати за межами асинхронної ф-ції
+  3. await заморожує виконання асинхронної фукції до тих пір поки проміс не перейде у стан Fullfilled або Rejected
+  4. await повертає дані з промісу, а не сам проміс
+  5. async/await потрібні для того щоб зробити імітацію синхронності всередині асинхронного коду
+  */
+
+  async getNews() {
     const url = `https://newsapi.org/v2/everything?apiKey=${API_KEY}&q=${this.searchValue}&pageSize=6&page=${this.page}`;
-    return fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        this.incrementPage();
-        return data;
-      });
+
+    const res = await axios.get(url);
+    this.incrementPage();
+    return res.data;
+
+    // return axios.get(url).then((res) => {
+    //   this.incrementPage();
+    //   return res.data;
+    // });
+
+    // axios
+    // return axios.get(url).then((res) => {
+    //   this.incrementPage();
+    //   return res.data;
+    // });
+
+    // fetch
+    // return fetch(url)
+    //   .then((res) => res.json())
+    //   .then((data) => {
+    //     this.incrementPage();
+    //     return data;
+    //   });
   }
 
   setSearchValue(query) {

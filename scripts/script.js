@@ -4,6 +4,7 @@ import LoadMoreBtn from "./components/LoadMoreBtn.js";
 const refs = {
   form: document.getElementById("form"),
   newsWrapper: document.getElementById("newsWrapper"),
+  totalResults: document.getElementById("totalResults"),
 };
 
 const newsAPIService = new NewsAPIService();
@@ -15,12 +16,24 @@ const loadMoreBtn = new LoadMoreBtn({
 refs.form.addEventListener("submit", onSubmit);
 loadMoreBtn.button.addEventListener("click", fetchArticles);
 
-function fetchArticles() {
+async function fetchArticles() {
   loadMoreBtn.disable();
-  return generateArticlesMarkup().then((markup) => {
+
+  try {
+    const markup = await generateArticlesMarkup();
+    if (markup === undefined) throw new Error("No data!");
     appendNewToNewsList(markup);
-    loadMoreBtn.enable();
-  });
+  } catch (err) {
+    onError(err);
+  }
+
+  loadMoreBtn.enable();
+
+  // old code
+  // return generateArticlesMarkup().then((markup) => {
+  //   appendNewToNewsList(markup);
+  //   loadMoreBtn.enable();
+  // });
 }
 
 function onSubmit(event) {
@@ -41,15 +54,36 @@ function onSubmit(event) {
     .finally(() => refs.form.reset());
 }
 
-function generateArticlesMarkup() {
-  return newsAPIService.getNews().then(({ articles }) => {
+async function generateArticlesMarkup() {
+  try {
+    const { articles, totalResults } = await newsAPIService.getNews();
+    const nextPage = newsAPIService.page;
+    const maxPage = Math.ceil(totalResults / 6);
+    // 17 / 6 -> 2.8 > 3 -> 6 + 6 + 5
+    if (nextPage > maxPage) {
+      loadMoreBtn.hide();
+    }
+
     if (articles.length === 0) throw new Error("Not found");
 
+    refs.totalResults.textContent = `Total: ${totalResults}`;
     return articles.reduce(
       (markup, currentNews) => markup + createMarkup(currentNews),
       ""
     );
-  });
+  } catch (err) {
+    onError(err);
+  }
+
+  // old code
+  // return newsAPIService.getNews().then(({ articles }) => {
+  //   if (articles.length === 0) throw new Error("Not found");
+
+  //   return articles.reduce(
+  //     (markup, currentNews) => markup + createMarkup(currentNews),
+  //     ""
+  //   );
+  // });
 }
 
 function createMarkup({ author, title, description, url, urlToImage }) {
@@ -77,7 +111,10 @@ function clearNewsList() {
 
 function onError(err) {
   console.error(err);
-  updateNewsList(`<p>${err.message}</p>`);
+  clearNewsList();
+  appendNewToNewsList(`<p>${err.message}</p>`);
+  loadMoreBtn.hide();
+  refs.totalResults.textContent = "";
 }
 
 //! ===========
